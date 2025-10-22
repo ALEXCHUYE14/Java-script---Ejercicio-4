@@ -1,12 +1,14 @@
+/* --- ESTILOS BASE Y TEMA --- */
 body {
-    font-family: Arial, sans-serif;
-    background-color: #282c34; /* Fondo oscuro (tema de código) */
-    color: #abb2bf; /* Color de texto claro */
+    font-family: 'Arial', sans-serif;
+    background-color: #282c34; /* Fondo oscuro */
+    color: #abb2bf;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     margin: 0;
+    padding: 10px;
 }
 
 .container {
@@ -15,98 +17,157 @@ body {
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
     text-align: center;
-    width: 90%;
-    max-width: 900px;
+    width: 100%;
+    max-width: 950px;
+    box-sizing: border-box;
 }
 
 h1 {
-    color: #61afef; /* Azul claro para el título */
+    color: #61afef;
+    margin-top: 0;
+    font-size: 2em;
 }
 
 .header-info {
     display: flex;
     justify-content: space-around;
     margin-bottom: 20px;
+    font-size: 1.1em;
+    padding: 0 10px;
 }
 
+/* --- ÁREA DE JUEGO --- */
 .game-area {
     display: flex;
-    justify-content: space-around;
+    justify-content: center;
     gap: 20px;
 }
 
-/* --- Tablero --- */
+/* --- TABLERO (Grid) --- */
 .grid-container {
     display: grid;
-    /* Las columnas son definidas por JS: grid-template-columns: repeat(15, 1fr); */
     border: 3px solid #56b6c2;
     background-color: #282c34;
+    flex-shrink: 0;
 }
 
 .grid-cell {
-    width: 30px; /* Tamaño de celda base */
-    height: 30px;
+    /* Tamaño de celda por defecto para escritorio */
+    width: 35px; 
+    height: 35px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     user-select: none;
     font-weight: bold;
-    font-size: 16px;
-    transition: background-color 0.1s;
+    font-size: 18px;
+    transition: background-color 0.1s, transform 0.1s;
 }
 
-.grid-cell:not(.found):hover {
-    background-color: #4b5263; /* Sombra al pasar el ratón solo si no está encontrada */
-}
-
-/* Estilos de selección y encontrado */
-.selected {
-    background-color: #c678dd !important; /* Morado para la selección */
-    color: #282c34 !important;
-}
-
+/* Estilo para las celdas encontradas */
 .found {
     background-color: #98c379 !important; /* Verde para encontrado */
     color: #282c34 !important;
+    font-weight: 900;
+    /* Efecto de 'tick' o resalte más firme */
+    transform: scale(1.05); 
+    border: 1px solid #282c34;
+}
+.found:hover {
+    cursor: default;
 }
 
-/* --- Lista de Palabras --- */
+
+/* Estilo de selección temporal (al hacer clic individual) */
+.selected {
+    background-color: #c678dd !important; /* Morado para la selección temporal */
+    color: #282c34 !important;
+    transform: scale(0.95); /* Pequeño efecto al seleccionar */
+}
+
+/* Para el modo clic, no queremos que hover interfiera con el selected */
+.grid-cell:not(.found):not(.selected):hover {
+    background-color: #4b5263; 
+}
+
+
+/* --- LISTA DE PALABRAS --- */
 .word-list {
     text-align: left;
     padding: 15px;
     background-color: #2c313a;
     border-radius: 5px;
-    flex-basis: 30%;
+    flex-basis: 35%;
 }
 
 .word-list h2 {
-    color: #e5c07b; /* Amarillo para el subtítulo */
+    color: #e5c07b;
     margin-top: 0;
+    border-bottom: 1px solid #4b5263;
+    padding-bottom: 5px;
 }
 
 .word-item {
-    padding: 5px 0;
+    padding: 3px 0;
 }
 
 .found-word {
     text-decoration: line-through;
-    color: #636b77; /* Gris claro para tachado */
+    color: #636b77;
+    font-style: italic;
+    font-weight: normal;
 }
 
-/* --- Botón --- */
+/* --- BOTÓN --- */
 #new-game-btn {
-    padding: 10px 20px;
-    margin-top: 20px;
-    background-color: #e06c75; /* Rojo coral */
+    padding: 12px 25px;
+    margin-top: 30px;
+    background-color: #e06c75;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 1.1em;
     transition: background-color 0.3s;
 }
 
 #new-game-btn:hover {
     background-color: #be5046;
+}
+
+/* ================================================= */
+/* --- RESPONSIVIDAD (MÓVILES Y TABLETS PEQUEÑAS) --- */
+/* ================================================= */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+        margin: 10px auto;
+    }
+
+    .game-area {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .grid-container {
+        margin: 0 auto;
+        width: fit-content;
+        max-width: 100%;
+    }
+
+    /* Tamaño de celda en móvil */
+    .grid-cell {
+        width: 5vw; 
+        height: 5vw;
+        font-size: 2.2vw;
+        min-width: 20px;
+        min-height: 20px;
+        font-size: 14px;
+    }
+    
+    .word-list {
+        flex-basis: 100%;
+        text-align: center;
+    }
 }

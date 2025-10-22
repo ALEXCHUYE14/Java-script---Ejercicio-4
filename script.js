@@ -5,15 +5,10 @@ const JS_WORDS = [
     "LET", "PROMISE", "ASYNC", "AWAIT", "SCOPE",
     "CLOSURE", "DOM", "HOISTING", "CALLBACK", "PROTOTYPE"
 ];
+// DIRECTIONS ya no se usa para la interacción, pero se mantiene para la generación del tablero.
 const DIRECTIONS = [
-    { dr: 0, dc: 1 },  // Horizontal derecha
-    { dr: 0, dc: -1 }, // Horizontal izquierda
-    { dr: 1, dc: 0 },  // Vertical abajo
-    { dr: -1, dc: 0 }, // Vertical arriba
-    { dr: 1, dc: 1 },  // Diagonal abajo-derecha
-    { dr: 1, dc: -1 }, // Diagonal abajo-izquierda
-    { dr: -1, dc: 1 }, // Diagonal arriba-derecha
-    { dr: -1, dc: -1 } // Diagonal arriba-izquierda
+    { dr: 0, dc: 1 }, { dr: 0, dc: -1 }, { dr: 1, dc: 0 }, { dr: -1, dc: 0 },
+    { dr: 1, dc: 1 }, { dr: 1, dc: -1 }, { dr: -1, dc: 1 }, { dr: -1, dc: -1 }
 ];
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -32,11 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameGrid = [];
     let wordsToFind = [...JS_WORDS];
     let foundWords = [];
-    let wordLocations = {}; // Almacena coordenadas de palabras { "WORD": [{r,c}, ...] }
-    let isDrawing = false;
-    let selectionStartCell = null;
-    let selectionEndCell = null;
-    let currentSelection = []; // Celdas actualmente resaltadas con 'selected'
+    // wordLocations es CRUCIAL para saber qué celdas marcar en verde.
+    let wordLocations = {}; 
+    let currentSelection = []; // Lista de celdas DOM seleccionadas
     let timerInterval = null;
     let timeElapsed = 0;
 
@@ -48,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function initGame() {
         resetState();
         generateEmptyGrid();
-        placeWordsInGrid();
+        placeWordsInGrid(); // Coloca las palabras y llena wordLocations
         fillEmptyCells();
         drawGrid();
         drawWordList();
@@ -69,11 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         shuffledWords.forEach(word => {
             let placed = false;
-            let attempts = 0;
-            const maxAttempts = 500;
-
-            while (!placed && attempts < maxAttempts) {
-                attempts++;
+            let attempts = 500;
+            
+            while (!placed && attempts > 0) {
+                attempts--;
                 const startRow = Math.floor(Math.random() * GRID_SIZE);
                 const startCol = Math.floor(Math.random() * GRID_SIZE);
                 const direction = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
@@ -106,12 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         const c = startCol + i * dc;
                         gameGrid[r][c] = word[i];
                     }
-                    wordLocations[word] = currentWordCells;
+                    wordLocations[word] = currentWordCells; // 🔑 GUARDA LA UBICACIÓN ORIGINAL
                     placed = true;
                 }
-            }
-            if (!placed) {
-                console.warn(`No se pudo colocar la palabra: ${word}`);
             }
         });
     }
@@ -143,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawWordList() {
-        wordListDiv.innerHTML = '<h2>Palabras JS</h2>';
+        wordListDiv.innerHTML = '<h2>Palabras</h2>';
         wordsToFind.forEach(word => {
             const item = document.createElement('div');
             item.classList.add('word-item');
@@ -171,156 +160,121 @@ document.addEventListener('DOMContentLoaded', () => {
         wordsToFind = [...JS_WORDS];
         foundCountElement.textContent = foundWords.length;
         timerElement.textContent = "00:00";
-        clearSelection(false);
+        clearSelection();
         wordLocations = {};
         currentSelection = [];
-        selectionStartCell = null;
-        selectionEndCell = null;
-        // Limpiar estilos de encontrado
+        
         document.querySelectorAll('.found-word').forEach(el => el.classList.remove('found-word'));
         document.querySelectorAll('.found').forEach(el => el.classList.remove('found'));
     }
 
 
     // -------------------------------------------------------------------
-    // --- INTERACCIÓN Y MANEJO DE EVENTOS ---
+    // --- NUEVA INTERACCIÓN: CLIC INDIVIDUAL (FUNCIÓN CENTRAL) ---
     // -------------------------------------------------------------------
 
     function addInteractionListeners() {
         const cells = gridContainer.querySelectorAll('.grid-cell');
         cells.forEach(cell => {
-            cell.addEventListener('mousedown', handleMouseDown);
-            cell.addEventListener('mouseenter', handleMouseEnter);
-            cell.addEventListener('mouseup', handleMouseUp);
+            cell.addEventListener('click', handleCellClick);
         });
     }
 
-    function handleMouseDown(e) {
-        if (e.target.classList.contains('grid-cell') && !e.target.classList.contains('found')) {
-            isDrawing = true;
-            selectionStartCell = e.target;
-            selectionEndCell = e.target;
-            currentSelection = [selectionStartCell];
-            clearSelection();
-            selectionStartCell.classList.add('selected');
-        }
-    }
+    function handleCellClick(e) {
+        const cell = e.target;
+        // Ignorar si no es una celda o si ya ha sido encontrada
+        if (!cell.classList.contains('grid-cell') || cell.classList.contains('found')) return;
 
-    function handleMouseEnter(e) {
-        if (isDrawing && e.target.classList.contains('grid-cell') && !e.target.classList.contains('found')) {
-            selectionEndCell = e.target;
-            highlightSelection(selectionStartCell, selectionEndCell);
-        }
-    }
-
-    function handleMouseUp(e) {
-        if (isDrawing) {
-            isDrawing = false;
-            const foundWordText = checkWord(selectionStartCell, selectionEndCell);
-
-            if (foundWordText && !foundWords.includes(foundWordText)) {
-                markAsFound(foundWordText);
-                clearSelection(true); // Se encontró, no limpiamos inmediatamente
-                markCellsAsFound(wordLocations[foundWordText]);
-            } else {
-                // Si no se encontró, limpiar la selección después de un breve retraso
-                setTimeout(clearSelection, 300);
+        // Si la celda ya está seleccionada, la deseleccionamos
+        if (cell.classList.contains('selected')) {
+            cell.classList.remove('selected');
+            const index = currentSelection.indexOf(cell);
+            if (index > -1) {
+                currentSelection.splice(index, 1);
             }
-        }
-    }
-
-    /**
-     * Resalta visualmente las celdas en línea recta.
-     */
-    function highlightSelection(startCell, endCell) {
-        const startR = parseInt(startCell.dataset.row);
-        const startC = parseInt(startCell.dataset.col);
-        const endR = parseInt(endCell.dataset.row);
-        const endC = parseInt(endCell.dataset.col);
-
-        currentSelection.forEach(cell => cell.classList.remove('selected'));
-        currentSelection = [];
-
-        const dr = endR === startR ? 0 : (endR > startR ? 1 : -1);
-        const dc = endC === startC ? 0 : (endC > startC ? 1 : -1);
-
-        // Si no es una línea recta (o solo es una celda)
-        if (!(dr === 0 || dc === 0 || Math.abs(endR - startR) === Math.abs(endC - startC))) {
-            // Solo resaltamos el punto de inicio
-            startCell.classList.add('selected');
-            currentSelection = [startCell];
             return;
         }
-
-        let r = startR;
-        let c = startC;
-        while (true) {
-            const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
-            if (cell) {
-                cell.classList.add('selected');
-                currentSelection.push(cell);
-            }
-
-            if (r === endR && c === endC) break;
-
-            r += dr;
-            c += dc;
+        
+        // Evitar selecciones demasiado largas que nunca serán palabras
+        if (currentSelection.length >= 15) {
+             clearSelection();
         }
+
+        // Si la celda es nueva, la seleccionamos
+        cell.classList.add('selected');
+        currentSelection.push(cell);
+
+        // Comprobar si la nueva selección forma una palabra
+        checkSelection();
     }
 
     /**
-     * Verifica si la selección de celdas forma una palabra válida.
+     * Comprueba si las letras seleccionadas forman una palabra a encontrar.
      */
-    function checkWord(startCell, endCell) {
-        if (!startCell || !endCell) return null;
+    function checkSelection() {
+        if (currentSelection.length === 0) return;
 
-        const startR = parseInt(startCell.dataset.row);
-        const startC = parseInt(startCell.dataset.col);
-        const endR = parseInt(endCell.dataset.row);
-        const endC = parseInt(endCell.dataset.col);
-
-        const dr = endR === startR ? 0 : (endR > startR ? 1 : -1);
-        const dc = endC === startC ? 0 : (endC > startC ? 1 : -1);
-
-        if (!(dr === 0 || dc === 0 || Math.abs(endR - startR) === Math.abs(endC - startC))) {
-            return null;
-        }
-
+        // 1. Obtener la secuencia de letras seleccionadas (en el orden de selección)
         let selectedWord = '';
-        let currentPathCells = [];
-        let r = startR;
-        let c = startC;
+        currentSelection.forEach(cell => {
+            selectedWord += cell.textContent;
+        });
 
-        while (true) {
-            selectedWord += gameGrid[r][c];
-            currentPathCells.push({ r, c });
+        // 2. Comprobar coincidencias (palabra normal y palabra inversa)
+        const possibleWords = [selectedWord, selectedWord.split('').reverse().join('')];
+        
+        let foundWordText = null;
 
-            if (r === endR && c === endC) break;
-
-            r += dr;
-            c += dc;
-
-            if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) {
-                return null;
+        for (const word of possibleWords) {
+            if (wordsToFind.includes(word) && !foundWords.includes(word)) {
+                foundWordText = word;
+                break;
             }
         }
 
-        // 1. Comprobar la palabra en la dirección de la selección
-        if (wordsToFind.includes(selectedWord) && !foundWords.includes(selectedWord)) {
-            return selectedWord;
-        }
-
-        // 2. Comprobar la palabra en dirección inversa
-        const reversedWord = selectedWord.split('').reverse().join('');
-        if (wordsToFind.includes(reversedWord) && !foundWords.includes(reversedWord)) {
-            // Si se encontró al revés, guardamos su ubicación invertida
-            if(!wordLocations[reversedWord]) {
-                wordLocations[reversedWord] = currentPathCells.reverse();
+        // 3. Si encontramos una palabra, la marcamos
+        if (foundWordText) {
+            markAsFound(foundWordText);
+            
+            // Buscamos la ubicación en nuestro mapa wordLocations para el marcado visual
+            const cellsToMark = wordLocations[foundWordText];
+            
+            if (cellsToMark) {
+                 // Usamos las coordenadas guardadas para marcar la palabra correctamente
+                 markCellsAsFound(cellsToMark);
+            } else {
+                 // Respaldo (usa las celdas DOM seleccionadas)
+                 markCellsAsFoundByElement(currentSelection);
             }
-            return reversedWord;
-        }
 
-        return null;
+            // Después de encontrar, limpiamos la selección temporal
+            clearSelection();
+        }
+        // Si no se encuentra, la selección temporal (morada) se mantiene para que el usuario añada más letras.
+    }
+
+    /**
+     * Marca las celdas correspondientes a una palabra como 'found' usando las coordenadas.
+     */
+    function markCellsAsFound(cells) {
+        cells.forEach(({ r, c }) => {
+            const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+            if (cell) {
+                cell.classList.remove('selected');
+                cell.classList.add('found');
+            }
+        });
+    }
+
+    /**
+     * Marca las celdas correspondientes a una palabra como 'found' usando los elementos DOM.
+     * (Solo usado como respaldo o si se quiere marcar la selección exacta del usuario)
+     */
+    function markCellsAsFoundByElement(cells) {
+        cells.forEach(cell => {
+            cell.classList.remove('selected');
+            cell.classList.add('found');
+        });
     }
 
     function markAsFound(word) {
@@ -333,26 +287,15 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(timerInterval);
         }
     }
-
-    function markCellsAsFound(cells) {
-        cells.forEach(({ r, c }) => {
-            const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
-            if (cell) {
-                cell.classList.remove('selected');
-                cell.classList.add('found');
-            }
-        });
-    }
-
-    function clearSelection(keepFound = false) {
+    
+    /**
+     * Limpia la selección temporal (las celdas moradas)
+     */
+    function clearSelection() {
         currentSelection.forEach(cell => {
-            if (!keepFound || !cell.classList.contains('found')) {
-                cell.classList.remove('selected');
-            }
+             cell.classList.remove('selected');
         });
         currentSelection = [];
-        selectionStartCell = null;
-        selectionEndCell = null;
     }
 
 
@@ -360,49 +303,3 @@ document.addEventListener('DOMContentLoaded', () => {
     newGameBtn.addEventListener('click', initGame);
     initGame();
 });
-
-// [script.js - Dentro del DOMContentLoaded]
-
-/**
- * Resalta visualmente las celdas en línea recta.
- */
-function highlightSelection(startCell, endCell) {
-    // 1. Limpiamos cualquier selección visual anterior
-    currentSelection.forEach(cell => cell.classList.remove('selected'));
-    currentSelection = [];
-
-    const startR = parseInt(startCell.dataset.row);
-    const startC = parseInt(startCell.dataset.col);
-    const endR = parseInt(endCell.dataset.row);
-    const endC = parseInt(endCell.dataset.col);
-
-    // Calcula la dirección
-    const dr = endR === startR ? 0 : (endR > startR ? 1 : -1);
-    const dc = endC === startC ? 0 : (endC > startC ? 1 : -1);
-
-    // 2. Comprueba si la selección es una línea recta (horizontal, vertical o diagonal)
-    const isStraightLine = (dr === 0 || dc === 0 || Math.abs(endR - startR) === Math.abs(endC - startC));
-
-    if (!isStraightLine) {
-        // Si no es recta, solo resaltamos el punto de inicio para indicar selección inválida
-        startCell.classList.add('selected');
-        currentSelection = [startCell];
-        return;
-    }
-    
-    // 3. Si es recta, resaltamos todas las celdas en el camino
-    let r = startR;
-    let c = startC;
-    while (true) {
-        const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
-        if (cell) {
-            cell.classList.add('selected');
-            currentSelection.push(cell);
-        }
-
-        if (r === endR && c === endC) break;
-
-        r += dr;
-        c += dc;
-    }
-}
