@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (wordsToFind.includes(reversedWord) && !foundWords.includes(reversedWord)) {
             // Si se encontró al revés, guardamos su ubicación invertida
             if(!wordLocations[reversedWord]) {
-                 wordLocations[reversedWord] = currentPathCells.reverse();
+                wordLocations[reversedWord] = currentPathCells.reverse();
             }
             return reversedWord;
         }
@@ -360,3 +360,49 @@ document.addEventListener('DOMContentLoaded', () => {
     newGameBtn.addEventListener('click', initGame);
     initGame();
 });
+
+// [script.js - Dentro del DOMContentLoaded]
+
+/**
+ * Resalta visualmente las celdas en línea recta.
+ */
+function highlightSelection(startCell, endCell) {
+    // 1. Limpiamos cualquier selección visual anterior
+    currentSelection.forEach(cell => cell.classList.remove('selected'));
+    currentSelection = [];
+
+    const startR = parseInt(startCell.dataset.row);
+    const startC = parseInt(startCell.dataset.col);
+    const endR = parseInt(endCell.dataset.row);
+    const endC = parseInt(endCell.dataset.col);
+
+    // Calcula la dirección
+    const dr = endR === startR ? 0 : (endR > startR ? 1 : -1);
+    const dc = endC === startC ? 0 : (endC > startC ? 1 : -1);
+
+    // 2. Comprueba si la selección es una línea recta (horizontal, vertical o diagonal)
+    const isStraightLine = (dr === 0 || dc === 0 || Math.abs(endR - startR) === Math.abs(endC - startC));
+
+    if (!isStraightLine) {
+        // Si no es recta, solo resaltamos el punto de inicio para indicar selección inválida
+        startCell.classList.add('selected');
+        currentSelection = [startCell];
+        return;
+    }
+    
+    // 3. Si es recta, resaltamos todas las celdas en el camino
+    let r = startR;
+    let c = startC;
+    while (true) {
+        const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+        if (cell) {
+            cell.classList.add('selected');
+            currentSelection.push(cell);
+        }
+
+        if (r === endR && c === endC) break;
+
+        r += dr;
+        c += dc;
+    }
+}
